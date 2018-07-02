@@ -29,8 +29,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 	
 	// Game Stuff
 	private final int SIZE = 10;
-	Entity head;
-	ArrayList<Entity> snake;
+	private Entity head, apple;
+	private ArrayList<Entity> snake;
+	private int score;
+	private int level;
+	private boolean gameover;
 	
 	// Movement
 	private int dx, dy;
@@ -119,7 +122,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		g2d = image.createGraphics();
 		running = true;
 		setUplevel();
-		setFPS(10);
 	}
 	private void setUplevel() {
 		snake = new ArrayList<Entity>();
@@ -127,12 +129,29 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		head.setPosition(WIDTH / 2, HEIGHT / 2);
 		snake.add(head);
 		
-		for(int i=1; i<10; i++) {
+		for(int i=1; i<5; i++) {
+			// 蛇大小設定
 			Entity e = new Entity(SIZE);
 			e.setPosition(head.getX() + (i * SIZE), head.getY());
 			snake.add(e);
 		}
+		apple = new Entity(SIZE);
+		setApple();
+		score = 0;
+		gameover = false;
+		level = 1;
+		setFPS(level * 10);
 	}
+	
+	public void setApple() {
+		// 蘋果位置設定
+		int x = (int)(Math.random() * (WIDTH - SIZE));
+		int y = (int)(Math.random() * (HEIGHT - SIZE));
+		x = x - (x % SIZE);
+		y = y - (y % SIZE);
+		apple.setPosition(x, y);
+	}
+	
 	private void requestRender() {
 		render(g2d);
 		Graphics g = getGraphics();
@@ -141,6 +160,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 	}
 	
 	private void update() {
+		if(gameover) {
+			if(start) {
+				setUplevel();
+			}
+			return;
+		}
+		
 		// 按鍵控制位置更新
 		if(up && dy == 0) {
 			dy = -SIZE;
@@ -154,13 +180,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 			dy = 0;
 			dx = -SIZE;
 		}
-		if(right && dx == 0) {
+		if(right && dx == 0 && dy != 0) {
 			dy = 0;
 			dx = SIZE;
 		}
 		
 		if(dx!=0 || dy!=0) {
-			for(int i = snake.size() - 1; i>0; i--) {
+			for(int i = snake.size()-1; i>0; i--) {
 				snake.get(i).setPosition(
 						snake.get(i-1).getX(),
 						snake.get(i-1).getY()
@@ -169,20 +195,57 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 			head.move(dx, dy);
 		}
 		
-		if(head.getX()<0) head.setX(WIDTH);
-		if(head.getY()<0) head.setY(HEIGHT);
-		if(head.getX()>WIDTH) head.setX(0);
-		if(head.getY()>HEIGHT) head.setY(0);
+		// isCollsion碰撞檢查
+		for(Entity e : snake) {
+			if(e.isCollsion(head)) {
+				gameover = true;
+				break;
+			}
+		}
+		if(apple.isCollsion(head)) {
+			score++;
+			setApple();
+			
+			// 吃一顆蘋果，蛇多一格
+			Entity e = new Entity(SIZE);
+			e.setPosition(-100, -100);
+			snake.add(e);
+			
+			if(score % 5 == 0) {
+				level++;
+				if(level > 10) level = 10;
+				setFPS(level * 5);
+			}
+		}
+		
+		if(head.getX()<0) head.setX(WIDTH-10);
+		if(head.getY()<0) head.setY(HEIGHT-10);
+		if(head.getX()>WIDTH-10) head.setX(0);
+		if(head.getY()>HEIGHT-10) head.setY(0);
 		
 	}
 	
 	public void render(Graphics2D g2d) {
+		// 畫面顯示設定
 		g2d.clearRect(0, 0, WIDTH, HEIGHT); // 清空長方形區域
 		
 		g2d.setColor(Color.GREEN);
 		for(Entity e: snake) {
 			e.render(g2d);
 		}
+		
+		g2d.setColor(Color.RED);
+		apple.render(g2d);
+		
+		g2d.setColor(Color.WHITE);
+		g2d.drawString("Score : " + score + " Level : " + level, 15, 15);
+		if(gameover) {
+			g2d.drawString("GAME OVER!", 150, 200);
+		}
+		if(dx==0 && dy==0) {
+			g2d.drawString("READY!", 150, 200);
+		}
+
 	}
 
 }
